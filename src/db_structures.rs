@@ -48,9 +48,11 @@ pub struct DbTable {
     pub str_cols: Vec<(String, ColType)>,
     
     //data for each row
-    pub int_rows: Vec<Vec<Option<usize>>>,
-    pub str_rows: Vec<Vec<Option<String>>>,
+    pub int_rows: Vec<Vec<usize>>,
+    pub str_rows: Vec<Vec<String>>,
 }
+
+static NULL_INT_COL: usize = 9999;
 
 
 
@@ -60,7 +62,7 @@ impl DbTable {
     //col_names_types = column names and types
     //import_str_rows = rows of str data to import
     //import_int_rows = rows of int data to import
-    pub fn new(name: String, col_names_types: Vec<(String, ColType)>, import_str_rows: Vec<Vec<Option<String>>>, import_int_rows: Vec<Vec<Option<usize>>>) -> Option<Self> {
+    pub fn new(name: String, col_names_types: Vec<(String, ColType)>, import_str_rows: Vec<Vec<String>>, import_int_rows: Vec<Vec<usize>>) -> Option<Self> {
 
 
         //make sure that if rows are being imported that each column is covered
@@ -129,7 +131,7 @@ impl DbTable {
             let mut row_vec = Vec::new();
             for col_val in row {
                 //If None is trying to be put somewhere it shouldn't abort all
-                if col_val.is_none() && str_cols[i].1 == ColType::RequiredStrCol {
+                if col_val == "?" && str_cols[i].1 == ColType::RequiredStrCol {
                     println!("Error required column {} given None value", str_cols[i].0);
                     return None;
                 }
@@ -146,7 +148,7 @@ impl DbTable {
             let mut row_vec = Vec::new();
             for col_val in row {
                 //If None is trying to be put somewhere it shouldn't abort all
-                if col_val.is_none() && int_cols[i].1 == ColType::RequiredIntCol {
+                if col_val == NULL_INT_COL && int_cols[i].1 == ColType::RequiredIntCol {
                     println!("Error required column {} given None value", int_cols[i].0);
                     return None;
                 }
@@ -202,7 +204,7 @@ impl DbTable {
 
     //returns the new row count if successful
     //otherwise returns -1
-    pub fn insert(&mut self, import_str_rows: Vec<Vec<Option<String>>>, import_int_rows: Vec<Vec<Option<usize>>>) -> i32{
+    pub fn insert(&mut self, import_str_rows: Vec<Vec<String>>, import_int_rows: Vec<Vec<usize>>) -> i32{
         
 
         //make sure that if rows are being imported that each column is covered
@@ -253,7 +255,7 @@ impl DbTable {
             let mut row_vec = Vec::new();
             for col_val in row {
                 //If None is trying to be put somewhere it shouldn't abort all
-                if col_val.is_none() && self.str_cols[i].1 == ColType::RequiredStrCol {
+                if col_val == "?" && self.str_cols[i].1 == ColType::RequiredStrCol {
                     println!("Error required column {} given None value", self.str_cols[i].0);
                     return -1;
                 }
@@ -270,7 +272,7 @@ impl DbTable {
             let mut row_vec = Vec::new();
             for col_val in row {
                 //If None is trying to be put somewhere it shouldn't abort all
-                if col_val.is_none() && self.int_cols[i].1 == ColType::RequiredIntCol {
+                if col_val == NULL_INT_COL && self.int_cols[i].1 == ColType::RequiredIntCol {
                     println!("Error required column {} given None value", self.int_cols[i].0);
                     return -1;
                 }
