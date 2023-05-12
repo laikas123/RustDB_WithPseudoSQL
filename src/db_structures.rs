@@ -9,12 +9,26 @@ pub enum ColType {
     OptionalStrCol,
     RequiredIntCol,
     OptionalIntCol,
+    Unknown,
 }
 
+//since there's a lot of checks 
+//on whether Db is empty or not
+//easier to add field with
+//this type of enum
+//for checks rather than
+//tons of match statements
+#[derive(PartialEq, Debug, Clone, Copy)]
+pub enum DbStatus {
+    Empty,
+    Selected,
+}
 
-
+#[derive(Debug)]
 pub struct Db{
+    pub name: String,
     pub tables: HashMap<String, DbTable>,
+    pub status: DbStatus,
 }
 
 //although every entry in the table
@@ -43,10 +57,10 @@ pub struct DbTable {
 impl DbTable {
 
     //name = the name of the table
-    //metadata = column names and types
+    //col_names_types = column names and types
     //import_str_rows = rows of str data to import
     //import_int_rows = rows of int data to import
-    pub fn new(name: String, metadata: Vec<(String, ColType)>, import_str_rows: Vec<Vec<Option<String>>>, import_int_rows: Vec<Vec<Option<usize>>>) -> Option<Self> {
+    pub fn new(name: String, col_names_types: Vec<(String, ColType)>, import_str_rows: Vec<Vec<Option<String>>>, import_int_rows: Vec<Vec<Option<usize>>>) -> Option<Self> {
 
 
         //make sure that if rows are being imported that each column is covered
@@ -79,7 +93,7 @@ impl DbTable {
             }
 
             //make sure the combined length matches total cols
-            if (len_str_row + len_int_row) !=  metadata.len() {
+            if (len_str_row + len_int_row) !=  col_names_types.len() {
                 println!("Error, import data doesn't span all columns");
                 return None;
             }
@@ -96,7 +110,7 @@ impl DbTable {
         let mut int_cols = Vec::new();
         let mut str_cols = Vec::new();
 
-        for (col_name, col_type) in metadata {
+        for (col_name, col_type) in col_names_types {
             if col_type == ColType::RequiredIntCol || col_type == ColType::OptionalIntCol {
                 int_cols.push((col_name, col_type));
             }else if col_type == ColType::RequiredStrCol || col_type == ColType::OptionalStrCol{
@@ -301,13 +315,13 @@ fn test_insert() {
 
 
     let name = "Shoes".to_string();
-    let metadata = vec![("Name".to_string(), ColType::RequiredStrCol), ("Price".to_string(), ColType::RequiredIntCol), ("Stock".to_string(), ColType::RequiredIntCol), ("Discount".to_string(), ColType::OptionalIntCol)];
+    let col_names_types = vec![("Name".to_string(), ColType::RequiredStrCol), ("Price".to_string(), ColType::RequiredIntCol), ("Stock".to_string(), ColType::RequiredIntCol), ("Discount".to_string(), ColType::OptionalIntCol)];
     let import_str_rows = vec![vec![Some("Slippers".to_string())], 
                                vec![Some("Boots".to_string())]];
     let import_int_rows = vec![vec![Some(12), Some(33), None], vec![Some(33), Some(5), Some(12)]];
 
     
-    let mut shoes_table = DbTable::new(name, metadata, import_str_rows, import_int_rows).expect("good");
+    let mut shoes_table = DbTable::new(name, col_names_types, import_str_rows, import_int_rows).expect("good");
 
     shoes_table.pretty_print();
 
@@ -328,59 +342,68 @@ fn test_insert() {
 
 }
 
+pub fn string_to_coltype(col_type_string: &str) -> ColType{
+    match col_type_string {
+        "RS" => ColType::RequiredStrCol,
+        "RI" => ColType::RequiredIntCol,
+        "OS" => ColType::OptionalStrCol,
+        "OI" => ColType::OptionalIntCol,
+        _ => ColType::Unknown,
+    }
+}
 
 #[test]
 fn test_new(){
 
     let name = "Shoes".to_string();
-    let metadata = vec![("Name".to_string(), ColType::RequiredStrCol), ("Price".to_string(), ColType::RequiredIntCol), ("Stock".to_string(), ColType::RequiredIntCol), ("Discount".to_string(), ColType::OptionalIntCol)];
+    let col_names_types = vec![("Name".to_string(), ColType::RequiredStrCol), ("Price".to_string(), ColType::RequiredIntCol), ("Stock".to_string(), ColType::RequiredIntCol), ("Discount".to_string(), ColType::OptionalIntCol)];
     let import_str_rows = vec![vec![None], 
                                vec![Some("Boots".to_string())]];
     let import_int_rows = vec![vec![Some(12), Some(33), None], 
                                vec![Some(33), Some(5), Some(12)]];
 
     
-    let mut shoes_table = DbTable::new(name, metadata, import_str_rows, import_int_rows);
+    let mut shoes_table = DbTable::new(name, col_names_types, import_str_rows, import_int_rows);
 
     //should fail because missing required name 
     assert_eq!(shoes_table.is_none(), true);
 
 
     let name = "Shoes".to_string();
-    let metadata = vec![("Name".to_string(), ColType::RequiredStrCol), ("Price".to_string(), ColType::RequiredIntCol), ("Stock".to_string(), ColType::RequiredIntCol), ("Discount".to_string(), ColType::OptionalIntCol)];
+    let col_names_types = vec![("Name".to_string(), ColType::RequiredStrCol), ("Price".to_string(), ColType::RequiredIntCol), ("Stock".to_string(), ColType::RequiredIntCol), ("Discount".to_string(), ColType::OptionalIntCol)];
     let import_str_rows = vec![vec![Some("Boots".to_string())]];
     let import_int_rows = vec![vec![Some(12), Some(33), None], 
                                vec![Some(33), Some(5), Some(12)]];
 
     
-    let mut shoes_table = DbTable::new(name, metadata, import_str_rows, import_int_rows);
+    let mut shoes_table = DbTable::new(name, col_names_types, import_str_rows, import_int_rows);
 
     //should fail because length issue 
     assert_eq!(shoes_table.is_none(), true);
 
 
     let name = "Shoes".to_string();
-    let metadata = vec![("Name".to_string(), ColType::RequiredStrCol), ("Price".to_string(), ColType::RequiredIntCol), ("Stock".to_string(), ColType::RequiredIntCol), ("Discount".to_string(), ColType::OptionalIntCol)];
+    let col_names_types = vec![("Name".to_string(), ColType::RequiredStrCol), ("Price".to_string(), ColType::RequiredIntCol), ("Stock".to_string(), ColType::RequiredIntCol), ("Discount".to_string(), ColType::OptionalIntCol)];
     let import_str_rows = vec![vec![Some("Slippers".to_string())], 
                                vec![Some("Boots".to_string())]];
     let import_int_rows = vec![vec![Some(12), None, None], 
                                vec![Some(33), Some(5), Some(12)]];
 
     
-    let mut shoes_table = DbTable::new(name, metadata, import_str_rows, import_int_rows);
+    let mut shoes_table = DbTable::new(name, col_names_types, import_str_rows, import_int_rows);
 
     //should fail because missing required stock
     assert_eq!(shoes_table.is_none(), true);
 
 
     let name = "Shoes".to_string();
-    let metadata = vec![("Name".to_string(), ColType::RequiredStrCol), ("Price".to_string(), ColType::RequiredIntCol), ("Stock".to_string(), ColType::RequiredIntCol), ("Discount".to_string(), ColType::OptionalIntCol)];
+    let col_names_types = vec![("Name".to_string(), ColType::RequiredStrCol), ("Price".to_string(), ColType::RequiredIntCol), ("Stock".to_string(), ColType::RequiredIntCol), ("Discount".to_string(), ColType::OptionalIntCol)];
     let import_str_rows = vec![vec![Some("Slippers".to_string())], 
                                vec![Some("Boots".to_string())]];
     let import_int_rows = vec![vec![Some(12), Some(33), None], vec![Some(33), Some(5), Some(12)]];
 
     
-    let mut shoes_table = DbTable::new(name, metadata, import_str_rows, import_int_rows).expect("good");
+    let mut shoes_table = DbTable::new(name, col_names_types, import_str_rows, import_int_rows).expect("good");
 
     //should pass since passed in clean data
     // assert_eq!(shoes_table.is_none(), false);

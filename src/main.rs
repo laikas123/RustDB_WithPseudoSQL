@@ -35,6 +35,16 @@
 //
 //this will be great to have as a project if I document
 //it well
+//
+//
+//I will probably need to make operations such as
+//editing the database atomic especially since the rows
+//are separated by types so what if the system crashes after
+//updating a string row but not the int row....
+//
+//
+//todo give better helfpul error messages
+//when commands fail
 use std::collections::HashMap;
 use std::collections::BTreeMap;
 
@@ -52,16 +62,18 @@ fn main() {
     let mut input = String::new();
     input = get_user_input(input);
 
-    let input_split = input.split_whitespace();
 
-    for word in input_split {
-        println!("word = {}", word);
+    let mut my_interpreter = CommandInterpreter::new(input.clone());
+    my_interpreter.interpret_command();
+    my_interpreter.pretty_print();
+
+    loop{
+        input = get_user_input(input);
+        my_interpreter.set_btreemap(input.clone());
+        my_interpreter.interpret_command();
+        my_interpreter.pretty_print();
     }
 
-    let my_interpreter = CommandInterpreter::new(input.clone());
-
-    my_interpreter.interpret_command();
-  
 }
     
 pub fn get_user_input(mut input: String) -> String {

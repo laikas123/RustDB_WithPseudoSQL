@@ -29,6 +29,20 @@ pub enum KeywordNumArgs {
     Double,
     Tripe,
     Variable,
+    VariableTwoPlus,
+    VariableThreePlusOdd,
+}
+
+
+#[derive(PartialEq, Debug, Clone, Copy)]
+pub enum CommandFunctionality {
+    NoOp,
+    UpdateCols,
+    UpdateTable,
+    UpdateDb,
+    CreateDb,
+    CreateTable,
+    InsertIntoTable,
 }
 
 //this is for meta data about
@@ -65,16 +79,15 @@ pub enum KeywordNumArgs {
 #[derive(Debug, Clone)]
 pub struct KeywordAttrs {
     pub num_args: KeywordNumArgs,
-    pub special_args: Option<Vec<String>>,
-    pub callback_func: Option<fn(Vec<String>) -> bool>,
+    pub callback_func: CommandFunctionality,
 }
 
-
+#[derive(Debug)]
 pub struct CommandInterpreter {
     pub keywords: HashMap<String, KeywordAttrs>,
     pub current_columns: Vec<String>,
     pub current_btreemap: BTreeMap<usize, CommandWordDat>,
-    pub current_database: Option<Db>,
+    pub current_database: Db,
 }
 
 
@@ -88,7 +101,7 @@ impl CommandInterpreter {
             keywords: Self::create_keywords_map(),
             current_columns: Vec::new(),
             current_btreemap: BTreeMap::new(),
-            current_database: None,
+            current_database: Db{name: "".to_string(), tables: HashMap::new(), status: DbStatus::Empty},
         };
 
         interp.set_btreemap(command);
@@ -111,7 +124,7 @@ impl CommandInterpreter {
             if self.is_keyword(word){
                 command_btreemap.insert(index, CommandWordDat{name: word.to_string(), keyword: true, attrs: self.get_keyword_attrs(word.to_string())});
             }else{
-                command_btreemap.insert(index, CommandWordDat{name: word.to_string(), keyword: false, attrs: KeywordAttrs{num_args: KeywordNumArgs::Empty, special_args: None, callback_func: None}});
+                command_btreemap.insert(index, CommandWordDat{name: word.to_string(), keyword: false, attrs: KeywordAttrs{num_args: KeywordNumArgs::Empty,  callback_func: CommandFunctionality::NoOp}});
             }
             
 
@@ -122,22 +135,24 @@ impl CommandInterpreter {
 
     }
 
-    pub fn interpret_command(&self) -> bool{
+    pub fn interpret_command(&mut self) -> bool{
 
+        //go through each word in the command
         for (key, val) in &self.current_btreemap{
+            
+            //if it's a keyword like Select, create_table, etc.
             if val.keyword {
 
-                
-
+                //get the command attributes
+                //and expected number of args
                 let attrs = &val.attrs;
-        
-            
                 let num_args = attrs.num_args;
 
                 
 
-                //edge case
-                if *key == self.current_btreemap.len() && num_args != KeywordNumArgs::Empty {
+                //edge case, if the last word is keyword and expects args but there are none
+                //this is a panic, need to handle more gracefully though...
+                if (*key == self.current_btreemap.len()-1) && num_args != KeywordNumArgs::Empty {
                     //or handle cases where it can be here...
                     println!("if last word is keyword it can't take args");
                     return false;
@@ -145,8 +160,8 @@ impl CommandInterpreter {
 
                 //search for index of next keyword
                 //everything in between must be args
-                //the next keyword must have key val
-                //greater than current and 
+                //the next keyword must have index in command
+                //greater than current
                 let index_next_keyword = match self.current_btreemap.iter().position(|elem| elem.0 > key && elem.1.keyword ) {
                     Some(index) => index,
                     _ => self.current_btreemap.len(),
@@ -158,6 +173,8 @@ impl CommandInterpreter {
 
                 if !Self::validate_number_of_args(num_args, index_next_keyword - *key - 1) {
                     println!("Error invalid number of args for {} expected {:?} got {}", val.name, num_args, expected_num_args);
+                    println!("Note, for create_db spaces are not allowed");
+                    println!("Note, for create_table total args must be odd number since table name + 2*number of cols (since each call has two params col name and type)");
                     return false;
                 }
 
@@ -173,8 +190,106 @@ impl CommandInterpreter {
                 println!("args are {:?}", args);
 
                 match attrs.callback_func {
-                    Some(function) => function(args),
-                    _ => true, 
+                    CommandFunctionality::UpdateCols => {
+                        self.current_columns = args;
+                    },
+                    CommandFunctionality::CreateDb => {
+                        //note right now this really updates a Db
+                        //but to actually persist the Db in the filesystem
+                        //need to actually create files to handle this...
+                        self.current_database.name = args[0].clone();
+                        self.current_database.tables = HashMap::new();
+                        self.current_database.status = DbStatus::Selected;
+                            
+                    },
+                    CommandFunctionality::CreateTable => {
+                        
+
+                        if self.current_database.status == DbStatus::Empty {
+                            println!("Error can't add table, no database selected");
+                            return false;
+                        }
+
+                        //table name is first argument
+                        let name = args[0].clone();
+
+                        //make sure the table name doesn't already exist 
+                        // if self.current_database.expect("already checked not null").tables.contains_key(&name){
+                        //     println!("Error database already contains table with name {}", &name);
+                        //     return false;
+                        // }
+
+                        if self.current_database.tables.contains_key(&name){
+                            println!("Error table with name {} already exists in Db {}", &name, &self.current_database.name);
+                            return false;
+                        }
+                        
+
+                        //the valid column types
+                        //first char is required "R" or optional "O"
+                        //second char is string "S" or int "I"
+                        let valid_types = vec!["RS".to_string(), "OS".to_string(), "RI".to_string(), "OI".to_string()];
+
+                        let mut col_names_types = Vec::new();
+
+                        //uses a window of 2 e.g. [args[1], args[2]], [args[3], args[4]]
+                        for col_name_type in args[1..].chunks(2) {
+                            println!("{:?}", col_name_type);
+
+                            //make sure the column type is one of the expected types
+                            let matched_index = valid_types.iter().position(|elem| *elem == col_name_type[1]);
+
+                            if matched_index.is_none() {
+                                println!("Error unknown column type {}", &col_name_type[1]);
+                                return false;
+                            }else{
+                                col_names_types.push((col_name_type[0].clone(), string_to_coltype(&col_name_type[1])));
+                            }
+
+                        }
+
+                        let new_table = DbTable::new(name.clone(), col_names_types, Vec::new(), Vec::new());
+
+                        match new_table {
+                            Some(table) => {
+                                println!("Created table {} successfully", &name);
+                                self.current_database.tables.insert(name, table);
+                            },
+                            _ => {
+                                println!("Error could not create table");
+                                return false;
+                            },
+                        }
+
+                        
+
+                        
+                    },
+                    //user must supply vals for each column, even optional columns
+                    //for none use special symbol ?
+                    CommandFunctionality::InsertIntoTable => {
+                        //table name is first argument
+                        let name = args[0].clone();
+
+                        //make sure the table exists
+                        if !self.current_database.tables.contains_key(&name){
+                            println!("Error table with name {} doesn't exist in Db {}", &name, &self.current_database.name);
+                            return false;
+                        }
+
+                        let table = &mut self.current_database.tables.get(&name).expect("alrady checked existence");
+
+                        //there should be one argument for each column in the table
+                        let expected_num_args = table.int_cols.len() + table.str_cols.len();
+
+                        
+
+
+
+
+
+                    },
+                    _ => (), 
                 };
                 
                 
@@ -199,6 +314,11 @@ impl CommandInterpreter {
             KeywordNumArgs::Double => arg_count == 2,
             KeywordNumArgs::Tripe => arg_count == 3,
             KeywordNumArgs::Variable => arg_count >= 1,
+            KeywordNumArgs::VariableTwoPlus => arg_count >= 2, //for insert_into takes at least (table_name, col val(s))
+            KeywordNumArgs::VariableThreePlusOdd => arg_count >= 3 && arg_count % 2 == 1,   //this is for create_table where you need at least (table name, col1 name, col1 type)
+                                                                                            //it also needs to be an odd number because table name is 1 + you always need col name and type
+                                                                                            //so it's always 1 + 2*x where x is the number of columns so this must always be odd 
+                                                                                        
         }
     }
 
@@ -206,15 +326,16 @@ impl CommandInterpreter {
     pub fn create_keywords_map() -> HashMap<String, KeywordAttrs> {
         let mut keywords = HashMap::new();        
         //select can have variable number of args but at least 1, also * has special meaning
-        keywords.insert("select".to_string(), KeywordAttrs{num_args: KeywordNumArgs::Variable, special_args: Some(vec!["*".to_string()]), callback_func: Some(Self::set_columns)});
+        keywords.insert("select".to_string(), KeywordAttrs{num_args: KeywordNumArgs::Variable, callback_func: CommandFunctionality::UpdateCols});
         //from typically just takes a table name so 1 arg, * is also special arg here meaning all tables, but I'll ignore that for now
-        keywords.insert("from".to_string(), KeywordAttrs{num_args: KeywordNumArgs::Single, special_args: None, callback_func: Some(Self::set_columns)});
+        keywords.insert("from".to_string(), KeywordAttrs{num_args: KeywordNumArgs::Single, callback_func: CommandFunctionality::UpdateTable});
         // //takes three arguments usually e.g. where "x = y", and = must be present so it's considered special
         // keywords.insert("where".to_string(), KeywordAttrs{num_args: KeywordNumArgs::Triple, special_args: Some(vec!["="])});
         // //
-        // keywords.insert("insert_into".to_string());
+        keywords.insert("insert_into".to_string(), KeywordAttrs{num_args: KeywordNumArgs::VariableTwoPlus, callback_func: CommandFunctionality::InsertIntoTable});
         // keywords.insert("values".to_string());  
-        // keywords.insert("create".to_string());        
+        keywords.insert("create_table".to_string(), KeywordAttrs{num_args: KeywordNumArgs::VariableThreePlusOdd, callback_func: CommandFunctionality::CreateTable});
+        keywords.insert("create_db".to_string(), KeywordAttrs{num_args: KeywordNumArgs::Single, callback_func: CommandFunctionality::CreateDb});
         // keywords.insert("table".to_string());  
         // keywords.insert("union".to_string());
         // keywords.insert("and".to_string());
@@ -222,10 +343,7 @@ impl CommandInterpreter {
         
     }
 
-    pub fn set_columns(name: Vec<String>) -> bool {
-        println!("got called");
-        return true;
-    }
+
 
     pub fn get_keyword_attrs(&self, keyword: String) -> KeywordAttrs {
 
@@ -243,6 +361,14 @@ impl CommandInterpreter {
         }
     }
 
+
+    pub fn pretty_print(&self) {
+        // println!("{:?}", self.keywords);
+        println!("{:?}", self.current_columns);
+        // println!("{:?}", self.current_btreemap);
+        println!("{:?}", self.current_database);
+
+    }
 
 
     #[test]
