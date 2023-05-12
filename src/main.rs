@@ -558,7 +558,8 @@ struct KeywordAttrs {
 struct CommandInterpreter {
     keywords: HashMap<String, KeywordAttrs>,
     current_columns: Vec<String>,
-    current_btreemap: BTreeMap<usize, CommandWordDat>
+    current_btreemap: BTreeMap<usize, CommandWordDat>,
+    current_database: Option<Db>,
 }
 
 
@@ -572,6 +573,7 @@ impl CommandInterpreter {
             keywords: Self::create_keywords_map(),
             current_columns: Vec::new(),
             current_btreemap: BTreeMap::new(),
+            current_database: None,
         };
 
         interp.set_btreemap(command);
@@ -654,6 +656,11 @@ impl CommandInterpreter {
                 }
 
                 println!("args are {:?}", args);
+
+                match attrs.callback_func {
+                    Some(function) => function(args),
+                    _ => true, 
+                };
                 
                 
 
@@ -701,6 +708,7 @@ impl CommandInterpreter {
     }
 
     pub fn set_columns(name: Vec<String>) -> bool {
+        println!("got called");
         return true;
     }
 
