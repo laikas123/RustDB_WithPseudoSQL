@@ -1,0 +1,3 @@
+create_db horses
+create_table horseshoes type RS quality RS quantity RI price RI
+insert_into horseshoes metal good 33 140

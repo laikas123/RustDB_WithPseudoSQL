@@ -1,3 +1,4 @@
+// use parse_int::parse;
 use super::db_structures::*;
 use std::collections::HashMap;
 use std::collections::BTreeMap;
@@ -279,12 +280,47 @@ impl CommandInterpreter {
 
                         let table = &mut self.current_database.tables.get(&name).expect("alrady checked existence");
 
+                        let str_len = table.str_cols.len();
+                        let int_len = table.int_cols.len();
+
                         //there should be one argument for each column in the table
-                        let expected_num_args = table.int_cols.len() + table.str_cols.len();
+                        let expected_num_args = str_len + int_len;
 
-                        
+                        if args[1..].len() != expected_num_args {
+                            println!("Error incorrect number of args, got {}, expected {}", args[1..].len(), expected_num_args);
+                            return false;
+                        }
 
 
+                        let mut int_args = Vec::new();
+
+                        for i in (1+str_len)..1+expected_num_args {
+                            match args[i].parse::<usize>() {
+                                Ok(parsed_int) => {
+                                    int_args.push(parsed_int);
+                                },
+                                _ => {
+                                    println!("Error could not parse int for argument {}", i);
+                                    return false;
+                                },
+                            }
+                        }
+
+                        // (*table).insert(vec![args[1..table.str_cols.len()].to_vec()], vec![int_args]);
+
+                        // self.current_database.insert_into_table(name, vec![args[1..table.str_cols.len()].to_vec()], vec![int_args]);
+
+                        // let mutable_table = self.current_database.table_mut(name);
+
+                        match self.current_database.table_mut(name.clone()) {
+                            Some(mutable_table) => {
+                                mutable_table.insert(vec![args[1..1+str_len].to_vec()], vec![int_args]);
+                            },
+                            _ => {
+                                println!("Error could not get mutable reference to table {}", name);
+                                return false;
+                            },
+                        }
 
 
 
@@ -367,6 +403,7 @@ impl CommandInterpreter {
         println!("{:?}", self.current_columns);
         // println!("{:?}", self.current_btreemap);
         println!("{:?}", self.current_database);
+        self.current_database.pretty_print_tables();
 
     }
 

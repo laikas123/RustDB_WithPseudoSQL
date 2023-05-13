@@ -31,6 +31,21 @@ pub struct Db{
     pub status: DbStatus,
 }
 
+
+impl Db {
+
+    pub fn table_mut(&mut self, table_name: String) -> Option<&mut DbTable> {
+        self.tables.get_mut(&table_name)
+    }
+
+    pub fn pretty_print_tables(&self) {
+        for (_, table) in &self.tables{
+            table.pretty_print();
+        }
+    }
+
+}
+
 //although every entry in the table
 //is stored as type string, ColType is
 //there to keep track of whether int
@@ -236,6 +251,9 @@ impl DbTable {
                 return -1;
             }
 
+            println!("import string rows {:?}", import_str_rows);
+            println!("import int rows {:?}", import_int_rows);
+
             //make sure the combined length matches total cols
             if len_str_row  != self.str_cols.len() || len_int_row != self.int_cols.len() {
                 println!("Error, import data doesn't span all columns");
@@ -295,12 +313,15 @@ impl DbTable {
     pub fn pretty_print(&self) {
         println!("\nPRINTING TABLE:\n");
         println!("Table: {}", &self.name);
-        println!("Str Cols: \n{:?}", &self.str_cols);
-        println!("Str Rows:");
-        &self.str_rows.iter().for_each(|elem| { println!("{:?}", elem) });
-        println!("Int Cols: \n{:?}", &self.int_cols);
-        println!("Int Rows:");
-        &self.int_rows.iter().for_each(|elem| { println!("{:?}", elem) });
+        print!("Cols: \n{:?} {:?}\n", &self.str_cols, &self.int_cols);
+        print!("Rows: \n", );
+        for i in 0..self.str_rows.len() {
+            print!("{:?}{:?}\n", self.str_rows[i], self.int_rows[i]);
+        } 
+        // &self.str_rows.iter().for_each(|elem| { println!("{:?}", elem) });
+        // println!("Int Cols: \n{:?}", &self.int_cols);
+        // println!("Int Rows:");
+        // &self.int_rows.iter().for_each(|elem| { println!("{:?}", elem) });
         println!("\n");
     }
 
