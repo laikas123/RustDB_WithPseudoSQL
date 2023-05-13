@@ -1,3 +1,9 @@
+use std::collections::HashMap;
+
+//import siblings 
+use super::db_structures::*;
+use super::cmd_logic::*;
+use super::cmd_interpreter::*;
 
 
 #[derive(PartialEq, Debug, Clone, Copy)]
@@ -6,20 +12,89 @@ pub enum Permission {
     ReadWrite,
 }
 
-
+#[derive(Debug)]
 pub struct Connection {
     pub permission: Permission,
     pub command: String,
     //this is really a pseudo field for now
-    //
-    pub CanExecute: bool,
+    //in reality this will be whenever the connection
+    //sends in new data from it's "stream"
+    pub can_execute: bool,
 }
 
 
-pub struct BufferedReaders {
-
+#[derive(Debug)]
+pub enum StatusFlag {
+    Dirty,
+    Clean,
 }
 
-pub struct BufferedReadWriters {
+#[derive(Debug)]
+// need a field or method to create an actual listener for tcp connections...
+pub struct LoadBalancer {
+    //each connection will have id for fast lookup
+    pub connections: HashMap<String, Connection>,
+    //this is just each database in memory
+    //key is database name, val is Db and status
+    pub pages: HashMap<String, (StatusFlag, Db)>,
+    pub cmd_interpreter: CmdInterpreter,
+}
+
+
+impl LoadBalancer {
+
+    pub fn new() -> Self {
+        LoadBalancer{
+            connections: HashMap::new(), 
+            pages: HashMap::new(),
+            cmd_interpreter: CmdInterpreter::new(),
+        }
+    }
+
+    pub fn execute_cmd(&mut self){
+
+        self.cmd_interpreter.set_btreemap("create_db horses".to_string());
+        self.cmd_interpreter.interpret_command(&mut self.pages, "".to_string());
+
+        self.pretty_print();
+
+        self.cmd_interpreter.set_btreemap("create_table horseshoes type RS quality RS quantity RI price RI".to_string());
+        self.cmd_interpreter.interpret_command(&mut self.pages, "horses".to_string());
+
+        self.pretty_print();
+
+        self.cmd_interpreter.set_btreemap("insert_into horseshoes metal good 33 140".to_string());
+        self.cmd_interpreter.interpret_command(&mut self.pages, "horses".to_string());
+
+        self.pretty_print();
+
+    }
+
+
+    pub fn pretty_print(&self) {
+        for (_, db_tuple) in &self.pages{
+            db_tuple.1.pretty_print_tables();
+        }
+    }
+
+
+
+    // pub fn handle_connections(&self) {
+
+    //     loop {
+    //         for connection in &self.connections{
+                
+    //             //equivalent of when the client has sent data
+    //             //over their connection
+    //             if connection.can_execute{
+                    
+    //             }
+
+    //         }
+    //     }
+
+
+    // }
+
 
 }

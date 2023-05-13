@@ -1,5 +1,6 @@
 //import sibling
 use super::db_structures::*;
+use super::load_balancer::*;
 use std::collections::HashMap;
 use std::collections::BTreeMap;
 
@@ -56,28 +57,24 @@ pub struct KeywordAttrs {
 }
 
 #[derive(Debug)]
-pub struct CommandInterpreter {
+pub struct CmdInterpreter {
     pub keywords: HashMap<String, KeywordAttrs>,
     pub current_columns: Vec<String>,
     pub current_btreemap: BTreeMap<usize, CommandWordDat>,
-    pub current_database: Db,
 }
 
 
-impl CommandInterpreter {
+impl CmdInterpreter {
 
-    pub fn new(command: String) -> Self {
-        let mut interp: CommandInterpreter = 
+    pub fn new() -> Self {
+        let mut interp: CmdInterpreter = 
         
-        CommandInterpreter 
+        CmdInterpreter 
         {
             keywords: Self::create_keywords_map(),
             current_columns: Vec::new(),
             current_btreemap: BTreeMap::new(),
-            current_database: Db{name: "".to_string(), tables: HashMap::new(), status: DbStatus::Empty},
         };
-
-        interp.set_btreemap(command);
 
         interp
 
@@ -108,7 +105,7 @@ impl CommandInterpreter {
 
     }
 
-    pub fn interpret_command(&mut self) -> bool{
+    pub fn interpret_command(&mut self, database_list: &mut HashMap<String, (StatusFlag, Db)>, current_database: String) -> bool{
 
         //go through each word in the command
         for (key, val) in &self.current_btreemap{
@@ -163,37 +160,38 @@ impl CommandInterpreter {
                 println!("args are {:?}", args);
 
                 match attrs.command_functionality {
-                    CommandFunctionality::UpdateCols => {
-                        self.current_columns = args;
-                    },
+                    
                     CommandFunctionality::CreateDb => {
                         //note right now this really updates a Db
                         //but to actually persist the Db in the filesystem
                         //need to actually create files to handle this...
-                        self.current_database.name = args[0].clone();
-                        self.current_database.tables = HashMap::new();
-                        self.current_database.status = DbStatus::Selected;
+                        // self.current_database.name = args[0].clone();
+                        // self.current_database.tables = HashMap::new();
+                        // self.current_database.status = DbStatus::Selected;
+
+                        database_list.insert(args[0].clone(), (StatusFlag::Clean, Db{name: args[0].clone(), tables: HashMap::new(), status: DbStatus::Empty}));
+
                             
                     },
                     CommandFunctionality::CreateTable => {
                         
+                        
 
-                        if self.current_database.status == DbStatus::Empty {
-                            println!("Error can't add table, no database selected");
+                        if !database_list.contains_key(&current_database) {
+                            println!("Can't create table for database {}, cannot find this database", current_database);
                             return false;
                         }
+
+                        //get database corresponding to clients currently selected database
+                        let database = &mut database_list.get_mut(&current_database).expect("already checked valid").1;
+
 
                         //table name is first argument
                         let name = args[0].clone();
 
-                        //make sure the table name doesn't already exist 
-                        // if self.current_database.expect("already checked not null").tables.contains_key(&name){
-                        //     println!("Error database already contains table with name {}", &name);
-                        //     return false;
-                        // }
-
-                        if self.current_database.tables.contains_key(&name){
-                            println!("Error table with name {} already exists in Db {}", &name, &self.current_database.name);
+                       //make sure no existing table with that name exists
+                        if database.tables.contains_key(&name){
+                            println!("Error table with name {} already exists in Db {}", &name, current_database);
                             return false;
                         }
                         
@@ -226,7 +224,7 @@ impl CommandInterpreter {
                         match new_table {
                             Some(table) => {
                                 println!("Created table {} successfully", &name);
-                                self.current_database.tables.insert(name, table);
+                                database.tables.insert(name, table);
                             },
                             _ => {
                                 println!("Error could not create table");
@@ -241,16 +239,27 @@ impl CommandInterpreter {
                     //user must supply vals for each column, even optional columns
                     //for none use special symbol ?
                     CommandFunctionality::InsertIntoTable => {
+
+
+                        if !database_list.contains_key(&current_database) {
+                            println!("Can't create table for database {}, cannot find this database", current_database);
+                            return false;
+                        }
+
+                        //get database corresponding to clients currently selected database
+                        let database = &mut database_list.get_mut(&current_database).expect("already checked valid").1;
+
+
                         //table name is first argument
                         let name = args[0].clone();
 
                         //make sure the table exists
-                        if !self.current_database.tables.contains_key(&name){
-                            println!("Error table with name {} doesn't exist in Db {}", &name, &self.current_database.name);
+                        if !database.tables.contains_key(&name){
+                            println!("Error table with name {} doesn't exist in Db {}", &name, current_database);
                             return false;
                         }
 
-                        let table = &mut self.current_database.tables.get(&name).expect("alrady checked existence");
+                        let table = &mut database.tables.get(&name).expect("alrady checked existence");
 
                         let str_len = table.str_cols.len();
                         let int_len = table.int_cols.len();
@@ -284,7 +293,7 @@ impl CommandInterpreter {
 
                         // let mutable_table = self.current_database.table_mut(name);
 
-                        match self.current_database.table_mut(name.clone()) {
+                        match database.table_mut(name.clone()) {
                             Some(mutable_table) => {
                                 mutable_table.insert(vec![args[1..1+str_len].to_vec()], vec![int_args]);
                             },
@@ -334,7 +343,7 @@ impl CommandInterpreter {
     pub fn create_keywords_map() -> HashMap<String, KeywordAttrs> {
         let mut keywords = HashMap::new();        
         //select can have variable number of args but at least 1, also * has special meaning
-        keywords.insert("select".to_string(), KeywordAttrs{num_args: KeywordNumArgs::Variable, command_functionality: CommandFunctionality::UpdateCols});
+        // keywords.insert("select".to_string(), KeywordAttrs{num_args: KeywordNumArgs::Variable, command_functionality: CommandFunctionality::UpdateCols});
         //from typically just takes a table name so 1 arg, * is also special arg here meaning all tables, but I'll ignore that for now
         keywords.insert("from".to_string(), KeywordAttrs{num_args: KeywordNumArgs::Single, command_functionality: CommandFunctionality::UpdateTable});
         // //takes three arguments usually e.g. where "x = y", and = must be present so it's considered special
@@ -374,8 +383,8 @@ impl CommandInterpreter {
         // println!("{:?}", self.keywords);
         println!("{:?}", self.current_columns);
         // println!("{:?}", self.current_btreemap);
-        println!("{:?}", self.current_database);
-        self.current_database.pretty_print_tables();
+        // println!("{:?}", self.current_database);
+        // self.current_database.pretty_print_tables();
 
     }
 

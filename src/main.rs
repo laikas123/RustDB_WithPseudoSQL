@@ -55,34 +55,45 @@ use cmd_logic::*;
 pub mod db_structures;
 use db_structures::*;
 
+pub mod load_balancer;
+use load_balancer::*;
+
+pub mod cmd_interpreter;
+use cmd_interpreter::*;
+
 
 
 fn main() {
     
-    let mut input = String::new();
-    // input = get_user_input(input);
+    // let mut input = String::new();
+    // // input = get_user_input(input);
 
-    input = "create_db horses".to_string();
-    let mut my_interpreter = CommandInterpreter::new(input.clone());
-    my_interpreter.interpret_command();
-    my_interpreter.pretty_print();
+    // input = "create_db horses".to_string();
+    // let mut my_interpreter = CommandInterpreter::new(input.clone());
+    // my_interpreter.interpret_command();
+    // my_interpreter.pretty_print();
 
-    input = "create_table horseshoes type RS quality RS quantity RI price RI".to_string();
-    my_interpreter.set_btreemap(input.clone());
-    my_interpreter.interpret_command();
-    my_interpreter.pretty_print();
+    // input = "create_table horseshoes type RS quality RS quantity RI price RI".to_string();
+    // my_interpreter.set_btreemap(input.clone());
+    // my_interpreter.interpret_command();
+    // my_interpreter.pretty_print();
 
-    input = "insert_into horseshoes metal good 33 140".to_string();
-    my_interpreter.set_btreemap(input.clone());
-    my_interpreter.interpret_command();
-    my_interpreter.pretty_print();
+    // input = "insert_into horseshoes metal good 33 140".to_string();
+    // my_interpreter.set_btreemap(input.clone());
+    // my_interpreter.interpret_command();
+    // my_interpreter.pretty_print();
 
-    loop{
-        input = get_user_input(input);
-        my_interpreter.set_btreemap(input.clone());
-        my_interpreter.interpret_command();
-        my_interpreter.pretty_print();
-    }
+    // loop{
+    //     input = get_user_input(input);
+    //     my_interpreter.set_btreemap(input.clone());
+    //     my_interpreter.interpret_command();
+    //     my_interpreter.pretty_print();
+    // }
+
+
+    let mut my_lb = LoadBalancer::new();
+
+    my_lb.execute_cmd();
 
 }
     
