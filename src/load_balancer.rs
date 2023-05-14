@@ -18,7 +18,7 @@ pub struct Connection {
     pub command: String,
     //this is really a pseudo field for now
     //in reality this will be whenever the connection
-    //sends in new data from it's "stream"
+    //sends in new data from its "stream"
     pub can_execute: bool,
 }
 
