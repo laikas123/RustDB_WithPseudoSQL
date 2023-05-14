@@ -1,107 +1,83 @@
-//idea.... I can create my RustDB
-//then host it through my own website
-//then test how secure it is to injection
-//based on SQLMap attacking myself...
+
+// use std::collections::HashMap;
+// use std::collections::BTreeMap;
 
 
-//functionalities to implement:
-//
-//add functionality to match order of cols given by user
-//note however this only really matters when they print
-//to the console so basically when they first create
-//or edit columns I'll need book keeping info to track
-//ordering
-//
-//Load tables from files
-//
-//Check for valid ints when 
-//inserting into int column
-//
-//Check for valid ints when 
-//retrieving from int column
-//
-//Save tables to files
-//
-//Commands similar to SQL
-//that is make a language
-//
-//multi threading to maybe implement
-//some sort of network connectivity
-//(need to implement some sort of one 
-//write many readers)
-//
-//caching for db tables to avoid reaching out to disk
-//
-//
-//this will be great to have as a project if I document
-//it well
-//
-//
-//I will probably need to make operations such as
-//editing the database atomic especially since the rows
-//are separated by types so what if the system crashes after
-//updating a string row but not the int row....
-//
-//
-//todo give better helfpul error messages
-//when commands fail
-use std::collections::HashMap;
-use std::collections::BTreeMap;
+// pub mod cmd_logic;
+// use cmd_logic::*;
 
+// pub mod db_structures;
+// use db_structures::*;
 
-pub mod cmd_logic;
-use cmd_logic::*;
+// pub mod load_balancer;
+// use load_balancer::*;
 
-pub mod db_structures;
-use db_structures::*;
-
-pub mod load_balancer;
-use load_balancer::*;
-
-pub mod cmd_interpreter;
-use cmd_interpreter::*;
+// pub mod cmd_interpreter;
+// use cmd_interpreter::*;
 
 
 
-fn main() {
+// fn main() {
+   
+
+
+//     let mut my_lb = LoadBalancer::new();
+
+//     my_lb.execute_cmd();
+
+// }
     
-    // let mut input = String::new();
-    // // input = get_user_input(input);
-
-    // input = "create_db horses".to_string();
-    // let mut my_interpreter = CommandInterpreter::new(input.clone());
-    // my_interpreter.interpret_command();
-    // my_interpreter.pretty_print();
-
-    // input = "create_table horseshoes type RS quality RS quantity RI price RI".to_string();
-    // my_interpreter.set_btreemap(input.clone());
-    // my_interpreter.interpret_command();
-    // my_interpreter.pretty_print();
-
-    // input = "insert_into horseshoes metal good 33 140".to_string();
-    // my_interpreter.set_btreemap(input.clone());
-    // my_interpreter.interpret_command();
-    // my_interpreter.pretty_print();
-
-    // loop{
-    //     input = get_user_input(input);
-    //     my_interpreter.set_btreemap(input.clone());
-    //     my_interpreter.interpret_command();
-    //     my_interpreter.pretty_print();
-    // }
+// pub fn get_user_input(mut input: String) -> String {
+//     input.clear();
+//     std::io::stdin().read_line(&mut input).unwrap();
+//     input.pop();
+//     input
+// }
 
 
-    let mut my_lb = LoadBalancer::new();
 
-    my_lb.execute_cmd();
+//! Asynchronous Rusql server.
+#![warn(rust_2018_idioms)]
+#![allow(elided_lifetimes_in_paths)]
 
+use async_std::prelude::*;
+use async_rusql::utils::RusqlResult;
+use std::sync::Arc;
+
+mod connection;
+mod group;
+mod group_table;
+
+use connection::serve;
+
+fn main() -> RusqlResult<()> {
+    let address = std::env::args().nth(1).expect("Usage: server ADDRESS");
+
+    let Rusql_group_table = Arc::new(group_table::GroupTable::new());
+
+    async_std::task::block_on(async {
+        // This code was shown in the chapter introduction.
+        use async_std::{net, task};
+
+        let listener = net::TcpListener::bind(address).await?;
+
+        let mut new_connections = listener.incoming();
+        while let Some(socket_result) = new_connections.next().await {
+            let socket = socket_result?;
+            let groups = Rusql_group_table.clone();
+            task::spawn(async {
+                log_error(serve(socket, groups).await);
+            });
+        }
+
+        Ok(())
+    })
 }
-    
-pub fn get_user_input(mut input: String) -> String {
-    input.clear();
-    std::io::stdin().read_line(&mut input).unwrap();
-    input.pop();
-    input
+
+fn log_error(result: RusqlResult<()>) {
+    if let Err(error) = result {
+        eprintln!("Error: {}", error);
+    }
 }
 
 
