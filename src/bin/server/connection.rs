@@ -54,6 +54,9 @@ pub async fn serve(socket: TcpStream, groups: Arc<GroupTable>)
 
             FromClient::Post { group_name, message } => {
                 match groups.get(&group_name) {
+                    //note this is really Arc<Group> but what's neat is
+                    //it just behaves normally when you call things
+                    //like its methods
                     Some(group) => {
                         group.post(message);
                         Ok(())

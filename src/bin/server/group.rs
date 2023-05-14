@@ -16,6 +16,7 @@ impl Group {
         Group { name, sender }
     }
 
+    //given an outbound
     pub fn join(&self, outbound: Arc<Outbound>) {
         let receiver = self.sender.subscribe();
 
