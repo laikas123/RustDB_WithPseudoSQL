@@ -1,5 +1,6 @@
 use async_std::task;
 
+
 fn main() -> ChatResult<()> {
     let address = std::env::args().nth(1)
         .expect("Usage: client ADDRESS:PORT");
