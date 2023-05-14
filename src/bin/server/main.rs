@@ -3,17 +3,7 @@
 // use std::collections::BTreeMap;
 
 
-// pub mod cmd_logic;
-// use cmd_logic::*;
 
-// pub mod db_structures;
-// use db_structures::*;
-
-// pub mod load_balancer;
-// use load_balancer::*;
-
-// pub mod cmd_interpreter;
-// use cmd_interpreter::*;
 
 
 
@@ -41,8 +31,22 @@
 #![allow(elided_lifetimes_in_paths)]
 
 use async_std::prelude::*;
-use async_rusql::utils::RusqlResult;
+// use async_rusql::utils::RusqlResult;
 use std::sync::Arc;
+
+use async_rusql::utils::{self, RusqlResult};
+
+pub mod cmd_logic;
+use cmd_logic::*;
+
+pub mod db_structures;
+use db_structures::*;
+
+pub mod load_balancer;
+use load_balancer::*;
+
+pub mod cmd_interpreter;
+use cmd_interpreter::*;
 
 mod connection;
 mod group;
@@ -51,6 +55,17 @@ mod group_table;
 use connection::serve;
 
 fn main() -> RusqlResult<()> {
+
+
+    let mut my_lb = LoadBalancer::new();
+
+    my_lb.execute_cmd();
+
+    my_lb.db_to_file();
+
+
+    return Ok(());
+
     let address = std::env::args().nth(1).expect("Usage: server ADDRESS");
 
     let Rusql_group_table = Arc::new(group_table::GroupTable::new());
@@ -78,6 +93,14 @@ fn log_error(result: RusqlResult<()>) {
     if let Err(error) = result {
         eprintln!("Error: {}", error);
     }
+}
+
+
+pub fn get_user_input(mut input: String) -> String {
+    input.clear();
+    std::io::stdin().read_line(&mut input).unwrap();
+    input.pop();
+    input
 }
 
 

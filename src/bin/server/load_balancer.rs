@@ -4,7 +4,8 @@ use std::collections::HashMap;
 use super::db_structures::*;
 use super::cmd_logic::*;
 use super::cmd_interpreter::*;
-
+use async_rusql::utils::RusqlResult;
+use async_rusql::utils::{self};
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Permission {
@@ -75,6 +76,19 @@ impl LoadBalancer {
         for (_, db_tuple) in &self.pages{
             db_tuple.1.pretty_print_tables();
         }
+    }
+
+    pub fn db_to_file(&self) -> RusqlResult<()>{
+        match self.pages.get("horses"){
+            Some(db_tuple) => {
+                utils::db_to_json_file(&db_tuple.1, "horses");
+                return Ok(());
+            },
+            _ => {
+                return Err("Could not write db to file...".into());
+            },
+        }
+        
     }
 
 

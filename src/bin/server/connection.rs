@@ -47,6 +47,11 @@ pub async fn serve(socket: TcpStream, groups: Arc<GroupTable>)
                 Ok(())
             }
 
+            FromClient::Query { command } => {
+                println!("Received a command: {}", command);
+                Ok(())
+            }
+
             FromClient::Post { group_name, message } => {
                 match groups.get(&group_name) {
                     Some(group) => {

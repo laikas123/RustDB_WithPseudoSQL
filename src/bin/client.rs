@@ -90,7 +90,11 @@ fn parse_command(line: &str) -> Option<FromClient> {
         return Some(FromClient::Join {
             group_name: Arc::new(group.to_string()),
         });
-    } else {
+    }else if command == "query" {
+        return Some(FromClient::Query{
+            command: Arc::new(rest.to_string()),
+        });
+    }else {
         eprintln!("Unrecognized command: {:?}", line);
         return None;
     }

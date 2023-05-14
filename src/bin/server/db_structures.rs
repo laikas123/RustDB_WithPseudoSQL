@@ -1,9 +1,10 @@
 
 use std::collections::HashMap;
 use std::collections::BTreeMap;
+use serde::{Deserialize, Serialize};
 
 
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Debug, Clone, Copy, Deserialize, Serialize)]
 pub enum ColType {
     RequiredStrCol,
     OptionalStrCol,
@@ -18,13 +19,13 @@ pub enum ColType {
 //this type of enum
 //for checks rather than
 //tons of match statements
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Debug, Clone, Copy, Deserialize, Serialize)]
 pub enum DbStatus {
     Empty,
     Selected,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Db{
     pub name: String,
     pub tables: HashMap<String, DbTable>,
@@ -50,7 +51,7 @@ impl Db {
 //is stored as type string, ColType is
 //there to keep track of whether int
 //to string conversions need to happen
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct DbTable {
     pub name: String,
 

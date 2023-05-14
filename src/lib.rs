@@ -12,6 +12,13 @@ pub enum FromClient {
         group_name: Arc<String>,
         message: Arc<String>,
     },
+    Query { command: Arc<String> },
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+pub enum ClientQuery {
+    Query { command: String },
+    
 }
 
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
